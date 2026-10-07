@@ -1,0 +1,25 @@
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+# Data and weights live in storage, not git
+data/
+runs/
+*.pt
+*.onnx
+*.pth
