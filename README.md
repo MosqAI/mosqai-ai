@@ -5,7 +5,7 @@ returns mosquito count, per-detection class (when the model supports it),
 confidence, bounding boxes and model version. It never talks to devices or apps
 directly, and it never modifies the original image.
 
-Primary owner: Developer 2.
+Owner: `@MosqAI/ai` team (gihozosheilla120). Integration with the backend is reviewed by `@MosqAI/core`.
 
 ## Technology
 

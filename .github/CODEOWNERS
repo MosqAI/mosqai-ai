@@ -1,0 +1,3 @@
+# Reviews are requested automatically from these teams.
+# Any one listed owner can approve, so core can review Sheilla's PRs.
+* @MosqAI/ai @MosqAI/core
