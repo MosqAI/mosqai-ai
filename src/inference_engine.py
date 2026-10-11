@@ -22,6 +22,8 @@ class MosqAInferenceEngine:
 
         img_norm = rgb_image.astype(np.float32) / 255.0
 
+        chw_img = np.transpose(img_norm,(2,0,1))
+        
         tensor_img = np.expand_dims(chw_img, axis=0) # The reason I did this was because Tensor expects [1, 3, 640, 640] for it to work with ONNX
         return tensor_img, original_img
 
