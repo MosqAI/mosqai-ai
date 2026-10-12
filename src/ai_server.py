@@ -52,11 +52,11 @@ class TrapResponseSchema(BaseModel):
     image_uid: Optional[str] = None
     new_mosquitoes: int
 
-@app.get("api/v1/health",status_code=status.HTTP_200_OK)
+@app.get("/api/v1/health",status_code=status.HTTP_200_OK)
 async def device_ping_handshake():
     return {"status": "responsive", "engine": "ONNX_YOLOv8_Active"}
 
-@app.post("api/v1/trap/frame",response_model= TrapResponseSchema,status_code=status.HTTP_201_CREATED)
+@app.post("/api/v1/trap/frame",response_model= TrapResponseSchema,status_code=status.HTTP_201_CREATED)
 async def process_incoming_trap_frame(
     trap_id: str = Form(...), 
     file: UploadFile = File(...)
