@@ -56,7 +56,7 @@ class TrapResponseSchema(BaseModel):
 async def device_ping_handshake():
     return {"status": "responsive", "engine": "ONNX_YOLOv8_Active"}
 
-@app.post("api/v1/trap/frame",response_model= TrapResponseSchema,status_code=status.HTTP_201.CREATED)
+@app.post("api/v1/trap/frame",response_model= TrapResponseSchema,status_code=status.HTTP_201_CREATED)
 async def process_incoming_trap_frame(
     trap_id: str = Form(...), 
     file: UploadFile = File(...)
