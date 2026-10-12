@@ -16,7 +16,7 @@ def run_system_integration_test():
         print(f"Server Status Code: {health_check.status_code}")
         print(f"Payload Response: {health_check.json()}")
     except requests.exceptions.ConnectionError:
-        print("[CRITICAL]: Could not connect to FastAPI server. Ensure main_server.py is running via uvicorn!")
+        print("[CRITICAL]: Could not connect to FastAPI server. Ensure uvicorn is running!")
         return
 
     print("\n[STEP 2]: Sending mock hourly trap image frame...")
@@ -37,7 +37,11 @@ def run_system_integration_test():
         
     print(f"Server Ingestion Status Code: {response.status_code}")
     print("Target JSON Output Structure Result:")
-    print(response.dumps(response.json(), indent=4) if hasattr(response, 'json') else response.text)
+    try:
+        import json
+        print(json.dumps(response.json(), indent=4))
+    except Exception:
+        print(response.text)
 
     print("\n[STEP 3]: Simulating dashboard 'Reset Chamber' event signal...")
     reset_response = requests.post(

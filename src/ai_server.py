@@ -7,7 +7,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from src.inference_engine import MosqAInferenceEngine
-
 import cloudinary 
 import cloudinary.uploader 
 
@@ -18,18 +17,18 @@ app = FastAPI(
 )
 
 cloudinary.config( 
-  cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "Put here the Cloud name"), 
-  api_key = os.getenv("CLOUDINARY_API_KEY", "Cloudinary API key"), 
-  api_secret = os.getenv("CLOUDINARY_API_SECRET", "Cloudinary API SECRET"),
+  cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "your_cloud_name"), 
+  api_key = os.getenv("CLOUDINARY_API_KEY", "your_api_key"), 
+  api_secret = os.getenv("CLOUDINARY_API_SECRET", "your_api_secret"),
   secure = True
 )
 
-db_params = {
-    "db_name":"mosqai_local",
-    "user":"postgres",
-    "password":"password_here",
-    "host":"localhost",
-    "port":5432
+DB_PARAMS = {
+    "dbname": "mosqai_local",
+    "user": "postgres",
+    "password": "your_actual_password",
+    "host": "host.docker.internal", 
+    "port": 5432
 }
 
 MODEL_PATH = "models/yolov8n_mosquito.onnx"
@@ -40,23 +39,22 @@ if not os.path.exists(MODEL_PATH):
     print("Please verify that the file exists and is located in the 'models' directory.")
     print("!" * 60 + "\n")
     AI_ENGINE = None
-
 else:
     print(f"[BOOTSTRAP]: Loading ONNX model layers from {MODEL_PATH}...")
     AI_ENGINE = MosqAInferenceEngine(model_path=MODEL_PATH)
 
 TEMP_DIR = "tmp_frames"
-os.makedirs(TEMP_DIR,exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 class TrapResponseSchema(BaseModel):
     image_uid: Optional[str] = None
     new_mosquitoes: int
 
-@app.get("/api/v1/health",status_code=status.HTTP_200_OK)
+@app.get("/api/v1/health", status_code=status.HTTP_200_OK)
 async def device_ping_handshake():
     return {"status": "responsive", "engine": "ONNX_YOLOv8_Active"}
 
-@app.post("/api/v1/trap/frame",response_model= TrapResponseSchema,status_code=status.HTTP_201_CREATED)
+@app.post("/api/v1/trap/frame", response_model=TrapResponseSchema, status_code=status.HTTP_201_CREATED)
 async def process_incoming_trap_frame(
     trap_id: str = Form(...), 
     file: UploadFile = File(...)
@@ -72,6 +70,12 @@ async def process_incoming_trap_frame(
         cursor = db_connection.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute(
+            """
+            SELECT total_mosquitoes_count 
+            FROM trap_analytics_log 
+            WHERE trap_id = %s 
+            ORDER BY logged_at DESC LIMIT 1
+            """,
             (trap_id,)
         )
         db_record = cursor.fetchone()
@@ -92,6 +96,11 @@ async def process_incoming_trap_frame(
         cloudinary_uid = upload_meta.get("public_id")
         
         cursor.execute(
+            """
+            INSERT INTO trap_analytics_log 
+            (trap_id, image_uid, new_mosquitoes_count, total_mosquitoes_count) 
+            VALUES (%s, %s, %s, %s)
+            """,
             (trap_id, cloudinary_uid, new_mosquitoes_delta, current_total_count)
         )
         db_connection.commit()
@@ -106,13 +115,11 @@ async def process_incoming_trap_frame(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Inference execution engine crash tracking: {str(server_error)}"
         )
-        
     finally:
         if db_connection:
             db_connection.close()
         if os.path.exists(local_file_path):
             os.remove(local_file_path)
-
 
 @app.post("/api/v1/trap/reset", status_code=status.HTTP_200_OK)
 async def trigger_trap_chamber_reset(trap_id: str = Form(...)):
@@ -121,8 +128,12 @@ async def trigger_trap_chamber_reset(trap_id: str = Form(...)):
         db_connection = psycopg2.connect(**DB_PARAMS)
         cursor = db_connection.cursor()
         
-        # Append an empty state log marker entry
         cursor.execute(
+            """
+            INSERT INTO trap_analytics_log 
+            (trap_id, image_uid, new_mosquitoes_count, total_mosquitoes_count) 
+            VALUES (%s, 'RESET_VECTOR', 0, 0)
+            """,
             (trap_id,)
         )
         db_connection.commit()
