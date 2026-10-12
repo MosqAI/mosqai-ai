@@ -1,9 +1,18 @@
 import requests
 import os
 
-BASE_URL = "http://127.0.0"
+BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000/api/v1")
 TEST_TRAP_ID = "TRAP-MVP-001"
-TEST_IMAGE_PATH = "tmp_frames/mock_trap_capture.jpg"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_IMAGE_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "tmp_frames", "mock_trap_capture.jpg"))
+
+def ensure_test_asset():
+    if not os.path.exists(TEST_IMAGE_PATH):
+        print(f"[SETUP]: Missing test asset at {TEST_IMAGE_PATH}. Generating mock asset...")
+        import sys
+        sys.path.insert(0, os.path.abspath(os.path.join(SCRIPT_DIR, "..")))
+        from tests.generate_tests_asset import create_mock_frame
+        create_mock_frame()
 
 def run_system_integration_test():
     print("=" * 60)
@@ -12,7 +21,7 @@ def run_system_integration_test():
     
     print("\n[STEP 1]: Testing hardware-to-backend network handshake...")
     try:
-        health_check = requests.get(f"{BASE_URL}/health")
+        health_check = requests.get(f"{BASE_URL}/health", timeout=5)
         print(f"Server Status Code: {health_check.status_code}")
         print(f"Payload Response: {health_check.json()}")
     except requests.exceptions.ConnectionError:
@@ -20,8 +29,9 @@ def run_system_integration_test():
         return
 
     print("\n[STEP 2]: Sending mock hourly trap image frame...")
+    ensure_test_asset()
     if not os.path.exists(TEST_IMAGE_PATH):
-        print(f"[ERROR]: Missing test asset. Run src/generate_test_assets.py first.")
+        print(f"[ERROR]: Missing test asset. Run tests/generate_tests_asset.py first.")
         return
         
     form_payload = {"trap_id": TEST_TRAP_ID}

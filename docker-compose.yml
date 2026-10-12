@@ -1,0 +1,18 @@
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mosqai-ai-container
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_NAME=mosqai_local
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-your_actual_password}
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+    restart: unless-stopped

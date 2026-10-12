@@ -53,9 +53,14 @@ class MosqAInferenceEngine:
                 boxes.append([x_min, y_min, int(width), int(height)])
                 confidences.append(float(confidence))
 
+        if len(boxes) == 0:
+            return 0
+
         suppressed_indices = cv2.dnn.NMSBoxes(
             boxes, confidences, self.confidence_threshold, self.nms_threshold
         )
 
-        mosquito_count = len(suppressed_indices)
-        return mosquito_count
+        if suppressed_indices is None or len(suppressed_indices) == 0:
+            return 0
+
+        return len(suppressed_indices)
