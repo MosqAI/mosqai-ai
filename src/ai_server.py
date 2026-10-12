@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
 
 from src.inference_engine import MosqAInferenceEngine
 import cloudinary
@@ -87,7 +88,8 @@ def upload_frame_asset(file_path: str, trap_id: str) -> str:
             logger.warning(f"Cloudinary upload failed ({e}); falling back to local reference UID.")
     return f"local_ref_{trap_id}_{uuid.uuid4().hex[:8]}"
 
-MODEL_PATH = "models/yolov8n_mosquito.onnx"
+MODEL_PATH = os.getenv("MODEL_PATH", "models/yolov8n_mosquito.onnx")
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 
 if not os.path.exists(MODEL_PATH):
     print("\n" + "!" * 60)
@@ -97,7 +99,7 @@ if not os.path.exists(MODEL_PATH):
     AI_ENGINE = None
 else:
     print(f"[BOOTSTRAP]: Loading ONNX model layers from {MODEL_PATH}...")
-    AI_ENGINE = MosqAInferenceEngine(model_path=MODEL_PATH)
+    AI_ENGINE = MosqAInferenceEngine(model_path=MODEL_PATH, confidence_threshold=CONFIDENCE_THRESHOLD)
 
 TEMP_DIR = "tmp_frames"
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -126,7 +128,7 @@ async def process_incoming_trap_frame(
     local_file_path = os.path.join(TEMP_DIR, f"{trap_id}_incoming.jpg")
     with open(local_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
+
     db_connection = None
     try:
         db_connection = get_db_connection()
@@ -159,10 +161,10 @@ async def process_incoming_trap_frame(
             last_total_count = IN_MEMORY_TRAP_LOG.get(trap_id, 0)
         
         current_total_count = AI_ENGINE.count_mosquitoes(local_file_path)
-        
+
         if current_total_count <= last_total_count:
             return TrapResponseSchema(image_uid=None, new_mosquitoes=0)
-            
+
         new_mosquitoes_delta = current_total_count - last_total_count
         image_uid = upload_frame_asset(local_file_path, trap_id)
 
@@ -211,7 +213,7 @@ async def process_incoming_trap_frame(
 
 @app.post("/trap/reset", status_code=status.HTTP_200_OK)
 @app.post("/api/v1/trap/reset", status_code=status.HTTP_200_OK)
-async def trigger_trap_chamber_reset(trap_id: str = Form(...)):
+def trigger_trap_chamber_reset(trap_id: str = Form(...)):
     db_connection = None
     try:
         db_connection = get_db_connection()
@@ -239,7 +241,7 @@ async def trigger_trap_chamber_reset(trap_id: str = Form(...)):
             IN_MEMORY_TRAP_LOG[trap_id] = 0
 
         return {"status": "reset_successful", "trap_id": trap_id, "tracking_total": 0}
-        
+
     except Exception as sql_error:
         if db_connection:
             try:

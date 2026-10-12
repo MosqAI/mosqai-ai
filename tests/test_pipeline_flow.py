@@ -1,3 +1,4 @@
+import json
 import requests
 import os
 
@@ -31,6 +32,7 @@ def run_system_integration_test():
     print("\n[STEP 2]: Sending mock hourly trap image frame...")
     ensure_test_asset()
     if not os.path.exists(TEST_IMAGE_PATH):
+        print(f"[ERROR]: Missing test asset. Run tests/generate_tests_asset.py first.")
         print(f"[ERROR]: Missing test asset. Run tests/generate_tests_asset.py first.")
         return
         

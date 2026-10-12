@@ -13,18 +13,42 @@ Python 3.11+ · PyTorch · Ultralytics YOLO · OpenCV · FastAPI · pytest
 
 ## Setup
 
-> Not scaffolded yet. First M2 issue: "AI service".
-> **Python is not installed on the current Windows machine yet.**
-
-Planned:
-
 ```bash
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env          # then fill in DB_PASSWORD (and Cloudinary keys)
 ```
+
+Create the database and table (PostgreSQL):
+
+```bash
+psql -U postgres -c "CREATE DATABASE mosqai_local;"
+psql -U postgres -d mosqai_local -f db/schema.sql
+```
+
+Generate the ONNX model locally (it is git-ignored, never committed):
+
+```bash
+pip install ultralytics onnx onnxslim
+python export_weight.py       # writes models/yolov8n_mosquito.onnx
+```
+
+Run the server from the repo root:
+
+```bash
+uvicorn src.ai_server:app --reload --port 8000
+```
+
+Integration check (with the server running, in a second terminal):
+
+```bash
+python tests/generate_tests_asset.py
+python tests/test_pipeline_flow.py
+```
+
+> The exported model is the stock COCO `yolov8n` checkpoint, not yet trained on
+> mosquitoes, so counts are placeholders until trained weights replace it.
 
 ## Environment variables
 
@@ -32,8 +56,10 @@ See [`.env.example`](.env.example).
 
 ## Development
 
-- `app/`: the HTTP service (inference endpoint, health check).
-- `training/`: dataset prep, training and evaluation scripts.
+- `src/ai_server.py`: the HTTP service (trap frame, reset and health endpoints).
+- `src/inference_engine.py`: ONNX preprocessing, inference and NMS counting.
+- `db/schema.sql`: the `trap_analytics_log` table.
+- `training/` (planned): dataset prep, training and evaluation scripts.
 - Model weights are **not** stored in git. They go in object storage or GitHub Releases and are referenced by a version string such as `mosqai-v1`.
 
 ## Testing
