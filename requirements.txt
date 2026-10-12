@@ -8,3 +8,4 @@ psycopg2-binary==2.9.9
 cloudinary==1.39.0
 pydantic==2.6.4
 requests==2.33.0
+python-dotenv==1.0.1

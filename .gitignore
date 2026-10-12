@@ -24,3 +24,5 @@ runs/
 *.onnx
 *.pth
 src/__pycache__/
+models/
+tmp_frames/

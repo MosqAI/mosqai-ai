@@ -1,5 +1,5 @@
 import cv2
-import numpy as np 
+import numpy as np
 import onnxruntime as ort
 
 class MosqAInferenceEngine:
@@ -41,17 +41,21 @@ class MosqAInferenceEngine:
 
         for row in output_matrix:
             classes_scores = row[4:]
+            classes_scores = row[4:]
             class_id = np.argmax(classes_scores)
             confidence = classes_scores[class_id]
 
             if confidence >= self.confidence_threshold:
-                x_center, y_center, width, height = row[0:4]
+                if confidence >= self.confidence_threshold:
+                    x_center, y_center, width, height = row[0:4]
 
-                x_min = int(x_center - (width / 2))
-                y_min = int(y_center - (height / 2))
+                    x_min = int(x_center - (width / 2))
+                    y_min = int(y_center - (height / 2))
+                    x_min = int(x_center - (width / 2))
+                    y_min = int(y_center - (height / 2))
 
-                boxes.append([x_min, y_min, int(width), int(height)])
-                confidences.append(float(confidence))
+                    boxes.append([x_min, y_min, int(width), int(height)])
+                    confidences.append(float(confidence))
 
         if len(boxes) == 0:
             return 0
