@@ -8,8 +8,8 @@ class MosqAInferenceEngine:
         self.confidence_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
 
-        self.input_name = self.session.get_input()[0].name
-        self.input_shape = self.session.get_input()[0].shape 
+        self.input_name = self.session.get_inputs()[0].name
+        self.input_shape = self.session.get_inputs()[0].shape 
 
     def preprocess(self,image_path):
         original_image = cv2.imread(image_path)
