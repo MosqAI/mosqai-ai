@@ -33,7 +33,17 @@ db_params = {
 }
 
 MODEL_PATH = "models/yolov8n_mosquito.onnx"
-AI_ENGINE = MosqAInferenceEngine(model_path=MODEL_PATH)
+
+if not os.path.exists(MODEL_PATH):
+    print("\n" + "!" * 60)
+    print(f"[CRITICAL CONFIG ERROR]: ONNX Model file not found at: {MODEL_PATH}")
+    print("Please verify that the file exists and is located in the 'models' directory.")
+    print("!" * 60 + "\n")
+    AI_ENGINE = None
+
+else:
+    print(f"[BOOTSTRAP]: Loading ONNX model layers from {MODEL_PATH}...")
+    AI_ENGINE = MosqAInferenceEngine(model_path=MODEL_PATH)
 
 TEMP_DIR = "tmp_frames"
 os.makedirs(TEMP_DIR,exist_ok=True)
