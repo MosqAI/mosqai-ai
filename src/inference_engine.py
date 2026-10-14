@@ -22,16 +22,18 @@ class MosqAInferenceEngine:
         self.input_height = height if isinstance(height, int) else DEFAULT_INPUT_SIZE
         self.input_width = width if isinstance(width, int) else DEFAULT_INPUT_SIZE
 
-    def letterbox(self, image):
-        """Resize keeping the aspect ratio and pad to the model input size."""
-        h, w = image.shape[:2]
+    def letterbox_geometry(self, h, w):
+        """Return (scale, new_w, new_h, left, top) for fitting an h x w image into the input."""
         scale = min(self.input_width / w, self.input_height / h)
         new_w, new_h = round(w * scale), round(h * scale)
+        return scale, new_w, new_h, (self.input_width - new_w) // 2, (self.input_height - new_h) // 2
+
+    def letterbox(self, image):
+        """Resize keeping the aspect ratio and pad to the model input size."""
+        _, new_w, new_h, left, top = self.letterbox_geometry(*image.shape[:2])
         resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         canvas = np.full((self.input_height, self.input_width, 3), LETTERBOX_FILL, dtype=np.uint8)
-        top = (self.input_height - new_h) // 2
-        left = (self.input_width - new_w) // 2
         canvas[top:top + new_h, left:left + new_w] = resized
         return canvas
 
@@ -44,8 +46,8 @@ class MosqAInferenceEngine:
         chw_img = np.transpose(rgb_image.astype(np.float32) / 255.0, (2, 0, 1))
         return np.expand_dims(chw_img, axis=0), original_image
 
-    def postprocess(self, raw_output):
-        """Count detections in a YOLOv8 output of shape (1, 4 + num_classes, num_boxes)."""
+    def postprocess_boxes(self, raw_output):
+        """Boxes (x, y, w, h) in model input pixels from a YOLOv8 output of shape (1, 4 + num_classes, num_boxes)."""
         predictions = np.squeeze(raw_output, axis=0).T
         class_scores = predictions[:, 4:]
         class_ids = np.argmax(class_scores, axis=1)
@@ -55,7 +57,7 @@ class MosqAInferenceEngine:
         if self.class_ids is not None:
             keep &= np.isin(class_ids, list(self.class_ids))
         if not keep.any():
-            return 0
+            return []
 
         x_center, y_center, width, height = predictions[keep, :4].T
         boxes = np.stack([x_center - width / 2, y_center - height / 2, width, height], axis=1)
@@ -63,9 +65,22 @@ class MosqAInferenceEngine:
         kept_indices = cv2.dnn.NMSBoxes(
             boxes.tolist(), confidences[keep].tolist(), self.confidence_threshold, self.nms_threshold
         )
-        return len(kept_indices)
+        return [tuple(boxes[i]) for i in np.array(kept_indices).flatten()]
 
-    def count_mosquitoes(self, image_path):
-        img_tensor, _ = self.preprocess(image_path)
+    def postprocess(self, raw_output):
+        """Count detections in a YOLOv8 output."""
+        return len(self.postprocess_boxes(raw_output))
+
+    def detect(self, image_path, background_path=None):
+        """Boxes (x, y, w, h) in original image pixels. The model looks at the frame
+        alone, so background_path is accepted only to match the rules detector."""
+        img_tensor, original_image = self.preprocess(image_path)
         raw_outputs = self.session.run(None, {self.input_name: img_tensor})
-        return self.postprocess(raw_outputs[0])
+        scale, _, _, left, top = self.letterbox_geometry(*original_image.shape[:2])
+        return [
+            (round((x - left) / scale), round((y - top) / scale), round(w / scale), round(h / scale))
+            for x, y, w, h in self.postprocess_boxes(raw_outputs[0])
+        ]
+
+    def count_mosquitoes(self, image_path, background_path=None):
+        return len(self.detect(image_path, background_path))

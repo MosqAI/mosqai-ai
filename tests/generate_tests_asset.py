@@ -1,35 +1,48 @@
 import os
+
+import cv2
 import numpy as np
 
+TARGET_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tmp_frames"))
+DARK_TUBE = 25
+
+
+def tube_photo(mosquitoes=()):
+    """A 640x480 view of the dark tube entrance, with LED-lit mosquitoes at the given centres."""
+    photo = np.full((480, 640, 3), DARK_TUBE, dtype=np.uint8)
+    cv2.rectangle(photo, (0, 0), (639, 30), (180, 180, 180), -1)              # tube rim
+    cv2.ellipse(photo, (500, 100), (10, 3), 0, 0, 360, (210, 210, 210), -1)  # LED reflection
+    for cx, cy in mosquitoes:
+        for dx in (-6, 0, 6):
+            cv2.line(photo, (cx + dx, cy - 12), (cx + dx, cy + 12), (120, 120, 120), 1)
+        cv2.ellipse(photo, (cx, cy), (12, 3), 20, 0, 360, (200, 200, 200), -1)
+    return photo
+
+
+def write(name, photo):
+    os.makedirs(TARGET_DIR, exist_ok=True)
+    path = os.path.join(TARGET_DIR, name)
+    cv2.imwrite(path, photo)
+    return path
+
+
 def create_mock_frame():
-    target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tmp_frames"))
-    os.makedirs(target_dir, exist_ok=True)
-    output_path = os.path.join(target_dir, "mock_trap_capture.jpg")
-
-    try:
-        import cv2
-        mock_frame = np.ones((640, 640, 3), dtype=np.uint8) * 120
-
-        cv2.circle(mock_frame, (150, 200), 12, (20, 20, 20), -1)
-        cv2.line(mock_frame, (150, 200), (130, 230), (0, 0, 0), 2)
-
-        cv2.circle(mock_frame, (400, 450), 10, (15, 15, 15), -1)
-        cv2.line(mock_frame, (400, 450), (420, 480), (0, 0, 0), 2)
-
-        cv2.imwrite(output_path, mock_frame)
-    except ImportError:
-        from PIL import Image, ImageDraw
-        img = Image.new("RGB", (640, 640), (120, 120, 120))
-        draw = ImageDraw.Draw(img)
-        draw.ellipse([150 - 12, 200 - 12, 150 + 12, 200 + 12], fill=(20, 20, 20))
-        draw.line([(150, 200), (130, 230)], fill=(0, 0, 0), width=2)
-        draw.ellipse([400 - 10, 450 - 10, 400 + 10, 450 + 10], fill=(15, 15, 15))
-        draw.line([(400, 450), (420, 480)], fill=(0, 0, 0), width=2)
-        img.save(output_path, "JPEG")
-
+    """A tube photo with two mosquitoes in view."""
+    output_path = write("mock_trap_capture.jpg", tube_photo([(200, 250), (420, 330)]))
     print(f"[TEST SETUP]: Mock frame created successfully at: {output_path}")
     return output_path
 
+
+def create_mock_event():
+    """(empty tube, burst photos) as the device sends them for one mosquito passing through."""
+    empty = write("mock_empty_tube.jpg", tube_photo())
+    burst = [
+        write("mock_event_1.jpg", tube_photo([(200, 250)])),
+        write("mock_event_2.jpg", tube_photo([(230, 210)])),  # moving towards the fan
+        write("mock_event_3.jpg", tube_photo()),               # already pulled in
+    ]
+    return empty, burst
+
+
 if __name__ == "__main__":
     create_mock_frame()
-

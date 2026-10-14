@@ -71,3 +71,21 @@ def test_postprocess_filters_to_target_classes():
 
 def test_postprocess_empty_output_is_zero():
     assert make_engine().postprocess(yolo_output([])) == 0
+
+
+def test_detect_maps_boxes_back_to_the_original_photo(tmp_path):
+    import cv2
+    path = tmp_path / "frame.jpg"
+    cv2.imwrite(str(path), np.zeros((480, 640, 3), dtype=np.uint8))
+
+    engine = make_engine()
+    engine.input_name = "images"
+
+    class FakeSession:
+        def run(self, outputs, feeds):
+            # 640x480 is letterboxed into 640x640 with 80 px of padding on top.
+            return [yolo_output([(320, 80 + 240, 40, 20, 0, 0.9)])]
+
+    engine.session = FakeSession()
+    assert engine.detect(str(path)) == [(300, 230, 40, 20)]
+    assert engine.count_mosquitoes(str(path), background_path="ignored.jpg") == 1

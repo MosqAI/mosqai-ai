@@ -11,9 +11,10 @@ os.environ.update({
     "CLOUDINARY_CLOUD_NAME": "",
     "CLOUDINARY_API_KEY": "",
     "CLOUDINARY_API_SECRET": "",
+    "DETECTOR": "yolo",
     "MODEL_PATH": "tests/no-model-in-tests.onnx",
     "MODEL_VERSION": "test-model",
-    "COUNT_SMOOTHING_WINDOW": "3",
+    "COLLECT_MODE": "false",
 })
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

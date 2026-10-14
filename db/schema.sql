@@ -32,7 +32,16 @@ BEGIN
     END IF;
 END $$;
 
+-- The camera watches the tube entrance: event_id groups the photos of one motion
+-- event (counted once), capture_reason is motion / heartbeat / startup, and
+-- logged_at is the capture time (device clock when NTP-synced).
+ALTER TABLE public.trap_analytics_log
+    ADD COLUMN IF NOT EXISTS event_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS capture_reason VARCHAR(16);
+
 CREATE INDEX IF NOT EXISTS idx_trap_time ON public.trap_analytics_log (trap_id, logged_at DESC);
+-- The service reads a trap's latest rows in insert order.
+CREATE INDEX IF NOT EXISTS idx_trap_id_desc ON public.trap_analytics_log (trap_id, id DESC);
 
 -- RLS on with no policies: only the secret / service_role key (SUPABASE_SECRET_KEY)
 -- can read or write, which is what the AI service uses. Public clients get nothing.
